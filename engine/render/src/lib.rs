@@ -36,11 +36,41 @@ impl Vertex {
     }
 }
 
-const VERTICES: &[Vertex] = &[
+struct Mesh {
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    index_count: u32,
+}
+
+impl Mesh {
+    fn new(device: &Device, vertices: &[Vertex], indices: &[u16]) -> Self {
+        let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(vertices),
+            usage: BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(indices),
+            usage: BufferUsages::INDEX,
+        });
+
+        Self {
+            vertex_buffer,
+            index_buffer,
+            index_count: indices.len() as u32,
+        }
+    }
+}
+
+const TRI_VERTICES: &[Vertex] = &[
     Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
     Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
     Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
 ];
+
+const TRI_INDICES: &[u16] = &[0, 1, 2];
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -103,6 +133,7 @@ pub fn run() {
         .unwrap();
 
     let mut last_frame = Instant::now();
+
     let mut camera = Camera {
         position: glam::vec3(0.0, 0.0, 2.0),
         yaw: -90.0_f32.to_radians(),
@@ -113,10 +144,21 @@ pub fn run() {
     let mut mouse_pressed = false;
     let mut last_mouse = (0.0, 0.0);
 
-    let renderer = pollster::block_on(async {
+    let (
+        surface,
+        device,
+        queue,
+        mut config,
+        pipeline,
+        mesh,
+        camera_buffer,
+        camera_bind_group,
+    ) = pollster::block_on(async {
         let size = window.inner_size();
+
         let instance = Instance::default();
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
+
         let adapter = instance.request_adapter(&RequestAdapterOptions {
             compatible_surface: Some(&surface),
             ..Default::default()
@@ -132,6 +174,7 @@ pub fn run() {
         ).await.unwrap();
 
         let format = surface.get_capabilities(&adapter).formats[0];
+
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
             format,
@@ -141,6 +184,7 @@ pub fn run() {
             alpha_mode: CompositeAlphaMode::Auto,
             view_formats: vec![],
         };
+
         surface.configure(&device, &config);
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -209,17 +253,10 @@ pub fn run() {
             multiview: None,
         });
 
-        let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: BufferUsages::VERTEX,
-        });
+        let mesh = Mesh::new(&device, TRI_VERTICES, TRI_INDICES);
 
-        (surface, device, queue, config, pipeline, vertex_buffer, camera_buffer, camera_bind_group)
+        (surface, device, queue, config, pipeline, mesh, camera_buffer, camera_bind_group)
     });
-
-    let (surface, device, queue, mut config, pipeline, vertex_buffer, camera_buffer, camera_bind) =
-        renderer;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -247,6 +284,7 @@ pub fn run() {
         let cam_uniform = CameraUniform {
             view_proj: vp.to_cols_array_2d(),
         };
+
         queue.write_buffer(&camera_buffer, 0, bytemuck::bytes_of(&cam_uniform));
 
         match event {
@@ -261,21 +299,19 @@ pub fn run() {
                     }
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
-    if button == MouseButton::Middle {
-        mouse_pressed = state == ElementState::Pressed;
-    }
-}
-
+                    if button == MouseButton::Middle {
+                        mouse_pressed = state == ElementState::Pressed;
+                    }
+                }
                 WindowEvent::CursorMoved { position, .. } => {
-    if mouse_pressed {
-        let dx = (position.x - last_mouse.0) as f32 * 0.002;
-        let dy = (position.y - last_mouse.1) as f32 * 0.002;
-        camera.yaw += dx;
-        camera.pitch = (camera.pitch - dy).clamp(-1.5, 1.5);
-    }
-    last_mouse = (position.x, position.y);
-}
-
+                    if mouse_pressed {
+                        let dx = (position.x - last_mouse.0) as f32 * 0.002;
+                        let dy = (position.y - last_mouse.1) as f32 * 0.002;
+                        camera.yaw += dx;
+                        camera.pitch = (camera.pitch - dy).clamp(-1.5, 1.5);
+                    }
+                    last_mouse = (position.x, position.y);
+                }
                 _ => {}
             },
             Event::RedrawRequested(_) => {
@@ -299,9 +335,10 @@ pub fn run() {
                     });
 
                     pass.set_pipeline(&pipeline);
-                    pass.set_bind_group(0, &camera_bind, &[]);
-                    pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                    pass.draw(0..3, 0..1);
+                    pass.set_bind_group(0, &camera_bind_group, &[]);
+                    pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                    pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
+                    pass.draw_indexed(0..mesh.index_count, 0, 0..1);
                 }
 
                 queue.submit(Some(encoder.finish()));
