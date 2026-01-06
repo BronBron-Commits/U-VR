@@ -15,13 +15,13 @@ impl RenderPipelineBundle {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("pipeline_layout"),
-            bind_group_layouts: &[&layouts.camera, &layouts.model],
+            label: Some("pipeline_layout_camera"),
+            bind_group_layouts: &[&layouts.camera],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("render_pipeline"),
+            label: Some("floor_pipeline_camera"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
