@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer::context::RenderContext;
 use crate::renderer::pipeline::{RenderPipelineBundle, layouts::BindGroupLayouts};
-use crate::renderer::resources::mesh::{Mesh, floor_mesh};
+use crate::renderer::resources::mesh::{Mesh, floor_mesh, cube_mesh};
 use crate::renderer::uniforms::camera::CameraUniform;
 
 pub fn render_frame(ctx: &mut RenderContext) {
@@ -14,18 +14,19 @@ pub fn render_frame(ctx: &mut RenderContext) {
         &wgpu::CommandEncoderDescriptor { label: Some("frame_encoder") },
     );
 
-    // --- Camera ---
     let view_m = Mat4::look_at_rh(
         Vec3::new(0.0, 5.0, 8.0),
         Vec3::ZERO,
         Vec3::Y,
     );
+
     let proj_m = Mat4::perspective_rh(
         45f32.to_radians(),
         ctx.surface.config.width as f32 / ctx.surface.config.height as f32,
         0.1,
         100.0,
     );
+
     let cam = CameraUniform {
         view_proj: (proj_m * view_m).to_cols_array_2d(),
     };
@@ -34,11 +35,12 @@ pub fn render_frame(ctx: &mut RenderContext) {
         &wgpu::util::BufferInitDescriptor {
             label: Some("camera_buffer"),
             contents: bytemuck::bytes_of(&cam),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM,
         },
     );
 
     let layouts = BindGroupLayouts::new(&ctx.device.device);
+
     let camera_bind_group = ctx.device.device.create_bind_group(
         &wgpu::BindGroupDescriptor {
             label: Some("camera_bind_group"),
@@ -56,12 +58,15 @@ pub fn render_frame(ctx: &mut RenderContext) {
         &layouts,
     );
 
-    let (v, i) = floor_mesh();
-    let mesh = Mesh::new(&ctx.device.device, &v, &i);
+    let (fv, fi) = floor_mesh();
+    let floor = Mesh::new(&ctx.device.device, &fv, &fi);
+
+    let (cv, ci) = cube_mesh();
+    let cube = Mesh::new(&ctx.device.device, &cv, &ci);
 
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("floor_pass"),
+            label: Some("main_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
                 resolve_target: None,
@@ -75,9 +80,16 @@ pub fn render_frame(ctx: &mut RenderContext) {
 
         pass.set_pipeline(&pipeline.pipeline);
         pass.set_bind_group(0, &camera_bind_group, &[]);
-        pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+
+        // floor
+        pass.set_vertex_buffer(0, floor.vertex_buffer.slice(..));
+        pass.set_index_buffer(floor.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..floor.index_count, 0, 0..1);
+
+        // avatar cube
+        pass.set_vertex_buffer(0, cube.vertex_buffer.slice(..));
+        pass.set_index_buffer(cube.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..cube.index_count, 0, 0..1);
     }
 
     ctx.device.queue.submit(Some(encoder.finish()));
