@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "engine/core",
+    "engine/net",
+    "engine/render",
+    "engine/platform",
+    "game/client",
+    "game/server"
+]
