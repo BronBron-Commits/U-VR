@@ -1,15 +1,18 @@
-use glam::Mat4;
+use glam::{Mat4, Vec3, Mat3};
 use wgpu::util::DeviceExt;
 
 use crate::renderer::context::RenderContext;
 use crate::renderer::pipeline::{RenderPipelineBundle, layouts::BindGroupLayouts};
 use crate::renderer::resources::mesh::{Mesh, floor_mesh, cube_mesh};
 use crate::renderer::uniforms::camera::{CameraUniform, OrbitCamera};
+use crate::renderer::Prop;
 
 pub fn render_frame(
     ctx: &mut RenderContext,
     camera: &OrbitCamera,
-    avatar_pos: glam::Vec3,
+    avatar_pos: Vec3,
+    avatar_yaw: f32,
+    props: &[Prop],
 ) {
     let frame = ctx.surface.surface.get_current_texture().unwrap();
     let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -19,7 +22,6 @@ pub fn render_frame(
     );
 
     let view_m = camera.view_matrix();
-
     let proj_m = Mat4::perspective_rh(
         45f32.to_radians(),
         ctx.surface.config.width as f32 / ctx.surface.config.height as f32,
@@ -61,12 +63,23 @@ pub fn render_frame(
     let floor = Mesh::new(&ctx.device.device, &fv, &fi);
 
     let (mut cv, ci) = cube_mesh();
+    let rot = Mat3::from_rotation_y(avatar_yaw);
     for v in &mut cv {
-        v.position[0] += avatar_pos.x;
-        v.position[1] += avatar_pos.y;
-        v.position[2] += avatar_pos.z;
+        let p = Vec3::from(v.position);
+        let rp = rot * p + avatar_pos;
+        v.position = rp.into();
     }
     let cube = Mesh::new(&ctx.device.device, &cv, &ci);
+
+    let mut prop_meshes = Vec::new();
+    for prop in props {
+        let (mut pv, pi) = cube_mesh();
+        for v in &mut pv {
+            let p = Vec3::from(v.position) * prop.scale + prop.position;
+            v.position = p.into();
+        }
+        prop_meshes.push(Mesh::new(&ctx.device.device, &pv, &pi));
+    }
 
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -92,6 +105,12 @@ pub fn render_frame(
         pass.set_vertex_buffer(0, cube.vertex_buffer.slice(..));
         pass.set_index_buffer(cube.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..cube.index_count, 0, 0..1);
+
+        for m in &prop_meshes {
+            pass.set_vertex_buffer(0, m.vertex_buffer.slice(..));
+            pass.set_index_buffer(m.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            pass.draw_indexed(0..m.index_count, 0, 0..1);
+        }
     }
 
     ctx.device.queue.submit(Some(encoder.finish()));
