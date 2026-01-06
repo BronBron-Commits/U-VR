@@ -1,7 +1,3 @@
-This is a polished version of your **README.md**. I have refined the formatting for maximum scannability, added a more professional visual hierarchy, and cleaned up the directory tree to ensure it looks sharp on GitHub.
-
----
-
 # U-VR
 
 **U-VR** is a minimal third-person 3D prototype built in **Rust + wgpu + winit**. It focuses on establishing a clean, extensible foundation for movement, camera control, and rendering without the overhead of a heavy game engine.
@@ -112,5 +108,3 @@ Distributed under the **MIT License**. See `LICENSE` for more information.
 ---
 
 **Status:** 🟢 *Stable baseline. Architecturally decoupled and ready for expansion.*
-
-Would you like me to **document the camera math explicitly** (e.g., the spherical-to-cartesian conversions) to include in a "Technical Details" section?
