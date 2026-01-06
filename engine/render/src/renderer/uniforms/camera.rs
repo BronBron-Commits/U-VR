@@ -9,6 +9,7 @@ pub struct CameraUniform {
 pub struct OrbitCamera {
     pub target: Vec3,
     pub distance: f32,
+
     pub yaw: f32,
     pub pitch: f32,
 }
@@ -34,7 +35,7 @@ impl OrbitCamera {
         self.distance -= scroll * 0.5;
         self.distance = self.distance.clamp(2.0, 50.0);
 
-        // orbit only when MMB held
+        // rotate ONLY while MMB is held
         if middle_mouse_held {
             let sensitivity = 0.005;
             self.yaw += mouse_dx * sensitivity;
