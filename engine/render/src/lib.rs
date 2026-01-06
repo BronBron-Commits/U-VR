@@ -36,6 +36,27 @@ impl Vertex {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct InstanceData {
+    model: [[f32; 4]; 4],
+}
+
+impl InstanceData {
+    fn layout() -> VertexBufferLayout<'static> {
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<InstanceData>() as BufferAddress,
+            step_mode: VertexStepMode::Instance,
+            attributes: &[
+                VertexAttribute { offset: 0,  shader_location: 2, format: VertexFormat::Float32x4 },
+                VertexAttribute { offset: 16, shader_location: 3, format: VertexFormat::Float32x4 },
+                VertexAttribute { offset: 32, shader_location: 4, format: VertexFormat::Float32x4 },
+                VertexAttribute { offset: 48, shader_location: 5, format: VertexFormat::Float32x4 },
+            ],
+        }
+    }
+}
+
 struct Mesh {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
@@ -64,13 +85,13 @@ impl Mesh {
     }
 }
 
-const TRI_VERTICES: &[Vertex] = &[
+const VERTICES: &[Vertex] = &[
     Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
     Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
     Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
 ];
 
-const TRI_INDICES: &[u16] = &[0, 1, 2];
+const INDICES: &[u16] = &[0, 1, 2];
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -111,10 +132,15 @@ var<uniform> camera: Camera;
 @vertex
 fn vs_main(
     @location(0) position: vec3<f32>,
-    @location(1) color: vec3<f32>
+    @location(1) color: vec3<f32>,
+    @location(2) m0: vec4<f32>,
+    @location(3) m1: vec4<f32>,
+    @location(4) m2: vec4<f32>,
+    @location(5) m3: vec4<f32>,
 ) -> VSOut {
+    let model = mat4x4<f32>(m0, m1, m2, m3);
     var out: VSOut;
-    out.position = camera.view_proj * vec4<f32>(position, 1.0);
+    out.position = camera.view_proj * model * vec4<f32>(position, 1.0);
     out.color = color;
     return out;
 }
@@ -135,7 +161,7 @@ pub fn run() {
     let mut last_frame = Instant::now();
 
     let mut camera = Camera {
-        position: glam::vec3(0.0, 0.0, 2.0),
+        position: glam::vec3(0.0, 0.0, 5.0),
         yaw: -90.0_f32.to_radians(),
         pitch: 0.0,
     };
@@ -151,6 +177,8 @@ pub fn run() {
         mut config,
         pipeline,
         mesh,
+        instance_buffer,
+        instance_count,
         camera_buffer,
         camera_bind_group,
     ) = pollster::block_on(async {
@@ -236,7 +264,7 @@ pub fn run() {
             vertex: VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::layout()],
+                buffers: &[Vertex::layout(), InstanceData::layout()],
             },
             fragment: Some(FragmentState {
                 module: &shader,
@@ -253,9 +281,33 @@ pub fn run() {
             multiview: None,
         });
 
-        let mesh = Mesh::new(&device, TRI_VERTICES, TRI_INDICES);
+        let mesh = Mesh::new(&device, VERTICES, INDICES);
 
-        (surface, device, queue, config, pipeline, mesh, camera_buffer, camera_bind_group)
+        let instances: Vec<InstanceData> = (-5..=5)
+            .map(|i| {
+                let t = glam::Mat4::from_translation(glam::vec3(i as f32 * 1.5, 0.0, 0.0));
+                InstanceData { model: t.to_cols_array_2d() }
+            })
+            .collect();
+
+        let instance_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&instances),
+            usage: BufferUsages::VERTEX,
+        });
+
+        (
+            surface,
+            device,
+            queue,
+            config,
+            pipeline,
+            mesh,
+            instance_buffer,
+            instances.len() as u32,
+            camera_buffer,
+            camera_bind_group,
+        )
     });
 
     event_loop.run(move |event, _, control_flow| {
@@ -337,8 +389,9 @@ pub fn run() {
                     pass.set_pipeline(&pipeline);
                     pass.set_bind_group(0, &camera_bind_group, &[]);
                     pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                    pass.set_vertex_buffer(1, instance_buffer.slice(..));
                     pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
-                    pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                    pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
                 }
 
                 queue.submit(Some(encoder.finish()));
