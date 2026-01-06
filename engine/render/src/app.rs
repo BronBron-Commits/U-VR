@@ -5,22 +5,19 @@ use glam::Vec3;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::Window,
+    window::WindowBuilder,
 };
 
 use crate::renderer::Renderer;
 
 pub fn run() {
-    pollster::block_on(async {
-        internal_run().await;
-    });
-}
-
-async fn internal_run() {
     let event_loop = EventLoop::new();
-    let window = Window::new(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title("U-VR")
+        .build(&event_loop)
+        .unwrap();
 
-    let mut renderer = Renderer::new(&window).await;
+    let mut renderer = pollster::block_on(Renderer::new(&window));
 
     let mut pressed = HashSet::new();
     let mut last_frame = Instant::now();
@@ -30,12 +27,12 @@ async fn internal_run() {
 
         match event {
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => {
-                    *control_flow = ControlFlow::Exit;
-                }
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+
                 WindowEvent::Resized(size) => {
                     renderer.resize(size.width, size.height);
                 }
+
                 WindowEvent::KeyboardInput { input, .. } => {
                     if let Some(key) = input.virtual_keycode {
                         match input.state {
@@ -48,32 +45,38 @@ async fn internal_run() {
                         }
                     }
                 }
+
                 _ => {}
             },
+
             Event::MainEventsCleared => {
                 let now = Instant::now();
                 let dt = (now - last_frame).as_secs_f32();
                 last_frame = now;
 
-                let mut movement = Vec3::ZERO;
-                let speed = 4.0;
+                let mut input = Vec3::ZERO;
 
                 if pressed.contains(&VirtualKeyCode::W) {
-                    movement.z -= speed;
+                    input.z += 1.0;
                 }
                 if pressed.contains(&VirtualKeyCode::S) {
-                    movement.z += speed;
+                    input.z -= 1.0;
                 }
                 if pressed.contains(&VirtualKeyCode::A) {
-                    movement.x -= speed;
+                    input.x -= 1.0;
                 }
                 if pressed.contains(&VirtualKeyCode::D) {
-                    movement.x += speed;
+                    input.x += 1.0;
                 }
 
-                renderer.update(dt, movement);
+                renderer.update(dt, input);
+                window.request_redraw();
+            }
+
+            Event::RedrawRequested(_) => {
                 renderer.render();
             }
+
             _ => {}
         }
     });
