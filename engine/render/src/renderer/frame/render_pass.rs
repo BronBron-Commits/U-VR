@@ -1,12 +1,16 @@
-use glam::{Mat4, Vec3};
+use glam::Mat4;
 use wgpu::util::DeviceExt;
 
 use crate::renderer::context::RenderContext;
 use crate::renderer::pipeline::{RenderPipelineBundle, layouts::BindGroupLayouts};
 use crate::renderer::resources::mesh::{Mesh, floor_mesh, cube_mesh};
-use crate::renderer::uniforms::camera::CameraUniform;
+use crate::renderer::uniforms::camera::{CameraUniform, OrbitCamera};
 
-pub fn render_frame(ctx: &mut RenderContext, avatar_pos: Vec3) {
+pub fn render_frame(
+    ctx: &mut RenderContext,
+    camera: &OrbitCamera,
+    avatar_pos: glam::Vec3,
+) {
     let frame = ctx.surface.surface.get_current_texture().unwrap();
     let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -14,12 +18,7 @@ pub fn render_frame(ctx: &mut RenderContext, avatar_pos: Vec3) {
         &wgpu::CommandEncoderDescriptor { label: Some("frame_encoder") },
     );
 
-    // --- Camera ---
-    let view_m = Mat4::look_at_rh(
-        Vec3::new(0.0, 5.0, 8.0),
-        Vec3::ZERO,
-        Vec3::Y,
-    );
+    let view_m = camera.view_matrix();
 
     let proj_m = Mat4::perspective_rh(
         45f32.to_radians(),
@@ -58,11 +57,9 @@ pub fn render_frame(ctx: &mut RenderContext, avatar_pos: Vec3) {
         &layouts,
     );
 
-    // --- Floor ---
     let (fv, fi) = floor_mesh();
     let floor = Mesh::new(&ctx.device.device, &fv, &fi);
 
-    // --- Avatar cube (CPU translated) ---
     let (mut cv, ci) = cube_mesh();
     for v in &mut cv {
         v.position[0] += avatar_pos.x;
@@ -88,12 +85,10 @@ pub fn render_frame(ctx: &mut RenderContext, avatar_pos: Vec3) {
         pass.set_pipeline(&pipeline.pipeline);
         pass.set_bind_group(0, &camera_bind_group, &[]);
 
-        // floor
         pass.set_vertex_buffer(0, floor.vertex_buffer.slice(..));
         pass.set_index_buffer(floor.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..floor.index_count, 0, 0..1);
 
-        // avatar cube
         pass.set_vertex_buffer(0, cube.vertex_buffer.slice(..));
         pass.set_index_buffer(cube.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..cube.index_count, 0, 0..1);

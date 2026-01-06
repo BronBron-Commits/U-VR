@@ -10,6 +10,8 @@ pub mod pipeline;
 pub mod resources;
 pub mod uniforms;
 
+use uniforms::camera::OrbitCamera;
+
 pub struct Renderer {
     ctx: RenderContext,
     frame: FrameRenderer,
@@ -17,6 +19,8 @@ pub struct Renderer {
     avatar_pos: Vec3,
     velocity: Vec3,
     grounded: bool,
+
+    pub camera: OrbitCamera,
 }
 
 impl Renderer {
@@ -30,6 +34,7 @@ impl Renderer {
             avatar_pos: Vec3::ZERO,
             velocity: Vec3::ZERO,
             grounded: true,
+            camera: OrbitCamera::new(),
         }
     }
 
@@ -38,30 +43,28 @@ impl Renderer {
     }
 
     pub fn update(&mut self, dt: f32, input: Vec3, jump: bool) {
-        // --- horizontal movement ---
         let speed = 4.0;
-        let dir = Vec3::new(input.x, 0.0, input.z).normalize_or_zero();
+        let dir = Vec3::new(-input.x, 0.0, -input.z).normalize_or_zero();
         self.avatar_pos += dir * speed * dt;
 
-        // --- jump impulse ---
         if jump && self.grounded {
             self.velocity.y = 5.0;
             self.grounded = false;
         }
 
-        // --- gravity ---
         self.velocity.y -= 9.8 * dt;
         self.avatar_pos.y += self.velocity.y * dt;
 
-        // --- ground plane ---
         if self.avatar_pos.y <= 0.0 {
             self.avatar_pos.y = 0.0;
             self.velocity.y = 0.0;
             self.grounded = true;
         }
+
+        self.camera.target = self.avatar_pos;
     }
 
     pub fn render(&mut self) {
-        self.frame.render(&mut self.ctx, self.avatar_pos);
+        self.frame.render(&mut self.ctx, &self.camera, self.avatar_pos);
     }
 }
