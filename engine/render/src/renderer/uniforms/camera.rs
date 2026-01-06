@@ -31,16 +31,20 @@ impl OrbitCamera {
         scroll: f32,
         middle_mouse_held: bool,
     ) {
-        // zoom always
+        // zoom
         self.distance -= scroll * 0.5;
         self.distance = self.distance.clamp(2.0, 50.0);
 
-        // rotate ONLY while MMB is held
+        // rotate only while MMB held
         if middle_mouse_held {
             let sensitivity = 0.005;
             self.yaw += mouse_dx * sensitivity;
             self.pitch += mouse_dy * sensitivity;
-            self.pitch = self.pitch.clamp(-1.5, 1.5);
+
+            // ---- PITCH LIMITS (normal human camera range) ----
+            let min_pitch = -1.2; // ~ -69°
+            let max_pitch =  0.3; // ~ +17°
+            self.pitch = self.pitch.clamp(min_pitch, max_pitch);
         }
     }
 
