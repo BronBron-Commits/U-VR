@@ -6,7 +6,7 @@ use crate::renderer::pipeline::{RenderPipelineBundle, layouts::BindGroupLayouts}
 use crate::renderer::resources::mesh::{Mesh, floor_mesh, cube_mesh};
 use crate::renderer::uniforms::camera::CameraUniform;
 
-pub fn render_frame(ctx: &mut RenderContext) {
+pub fn render_frame(ctx: &mut RenderContext, avatar_pos: Vec3) {
     let frame = ctx.surface.surface.get_current_texture().unwrap();
     let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -14,6 +14,7 @@ pub fn render_frame(ctx: &mut RenderContext) {
         &wgpu::CommandEncoderDescriptor { label: Some("frame_encoder") },
     );
 
+    // --- Camera ---
     let view_m = Mat4::look_at_rh(
         Vec3::new(0.0, 5.0, 8.0),
         Vec3::ZERO,
@@ -40,15 +41,14 @@ pub fn render_frame(ctx: &mut RenderContext) {
     );
 
     let layouts = BindGroupLayouts::new(&ctx.device.device);
-
     let camera_bind_group = ctx.device.device.create_bind_group(
         &wgpu::BindGroupDescriptor {
-            label: Some("camera_bind_group"),
             layout: &layouts.camera,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }],
+            label: None,
         },
     );
 
@@ -58,10 +58,17 @@ pub fn render_frame(ctx: &mut RenderContext) {
         &layouts,
     );
 
+    // --- Floor ---
     let (fv, fi) = floor_mesh();
     let floor = Mesh::new(&ctx.device.device, &fv, &fi);
 
-    let (cv, ci) = cube_mesh();
+    // --- Avatar cube (CPU translated) ---
+    let (mut cv, ci) = cube_mesh();
+    for v in &mut cv {
+        v.position[0] += avatar_pos.x;
+        v.position[1] += avatar_pos.y;
+        v.position[2] += avatar_pos.z;
+    }
     let cube = Mesh::new(&ctx.device.device, &cv, &ci);
 
     {

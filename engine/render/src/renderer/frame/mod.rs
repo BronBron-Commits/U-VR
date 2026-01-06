@@ -1,5 +1,6 @@
 pub mod render_pass;
 
+use glam::Vec3;
 use crate::renderer::context::RenderContext;
 
 pub struct FrameRenderer;
@@ -9,7 +10,7 @@ impl FrameRenderer {
         Self
     }
 
-    pub fn render(&mut self, ctx: &mut RenderContext) {
-        render_pass::render_frame(ctx);
+    pub fn render(&mut self, ctx: &mut RenderContext, avatar_pos: Vec3) {
+        render_pass::render_frame(ctx, avatar_pos);
     }
 }
