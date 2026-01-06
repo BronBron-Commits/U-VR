@@ -22,6 +22,8 @@ pub fn run() {
     let mut pressed = HashSet::new();
     let mut last_frame = Instant::now();
 
+    let mut jump_requested = false;
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -37,6 +39,9 @@ pub fn run() {
                     if let Some(key) = input.virtual_keycode {
                         match input.state {
                             ElementState::Pressed => {
+                                if key == VirtualKeyCode::Space {
+                                    jump_requested = true;
+                                }
                                 pressed.insert(key);
                             }
                             ElementState::Released => {
@@ -56,20 +61,23 @@ pub fn run() {
 
                 let mut input = Vec3::ZERO;
 
-                if pressed.contains(&VirtualKeyCode::W) {
-                    input.z += 1.0;
-                }
-                if pressed.contains(&VirtualKeyCode::S) {
-                    input.z -= 1.0;
-                }
-                if pressed.contains(&VirtualKeyCode::A) {
-                    input.x -= 1.0;
-                }
-                if pressed.contains(&VirtualKeyCode::D) {
-                    input.x += 1.0;
-                }
+if pressed.contains(&VirtualKeyCode::W) {
+    input.z -= 1.0;
+}
+if pressed.contains(&VirtualKeyCode::S) {
+    input.z += 1.0;
+}
+if pressed.contains(&VirtualKeyCode::A) {
+    input.x -= 1.0;
+}
+if pressed.contains(&VirtualKeyCode::D) {
+    input.x += 1.0;
+}
 
-                renderer.update(dt, input);
+
+                renderer.update(dt, input, jump_requested);
+                jump_requested = false;
+
                 window.request_redraw();
             }
 
