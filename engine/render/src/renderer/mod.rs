@@ -44,6 +44,8 @@ impl Renderer {
 
     pub fn update(&mut self, dt: f32, input: Vec3, jump: bool) {
         let speed = 4.0;
+
+        // --- player movement ONLY ---
         let dir = Vec3::new(-input.x, 0.0, -input.z).normalize_or_zero();
         self.avatar_pos += dir * speed * dt;
 
@@ -61,6 +63,7 @@ impl Renderer {
             self.grounded = true;
         }
 
+        // --- camera follows position ONLY ---
         self.camera.target = self.avatar_pos;
     }
 
