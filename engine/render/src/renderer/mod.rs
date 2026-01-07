@@ -28,6 +28,10 @@ pub struct Renderer {
     velocity: Vec3,
     grounded: bool,
 
+    // ===== DOUBLE JUMP STATE =====
+    jump_count: u8,
+    max_jumps: u8,
+
     pub camera: OrbitCamera,
     props: Vec<Prop>,
 }
@@ -62,6 +66,11 @@ impl Renderer {
             avatar_yaw: 0.0,
             velocity: Vec3::ZERO,
             grounded: true,
+
+            // ===== INIT DOUBLE JUMP =====
+            jump_count: 0,
+            max_jumps: 2,
+
             camera: OrbitCamera::new(),
             props,
         }
@@ -88,18 +97,25 @@ impl Renderer {
             self.avatar_pos += move_dir * speed * dt;
         }
 
-        if jump && self.grounded {
+        // ===== DOUBLE JUMP LOGIC =====
+        if jump && self.jump_count < self.max_jumps {
             self.velocity.y = 5.0;
             self.grounded = false;
+            self.jump_count += 1;
         }
 
+        // gravity
         self.velocity.y -= 9.8 * dt;
         self.avatar_pos.y += self.velocity.y * dt;
 
+        // ground collision
         if self.avatar_pos.y <= 0.0 {
             self.avatar_pos.y = 0.0;
             self.velocity.y = 0.0;
             self.grounded = true;
+
+            // RESET JUMPS ON LAND
+            self.jump_count = 0;
         }
 
         self.camera.target = self.avatar_pos;
