@@ -1,15 +1,15 @@
 use glam::Vec3;
 use winit::window::Window;
 
-use context::RenderContext;
-use frame::FrameRenderer;
-
 pub mod context;
 pub mod frame;
 pub mod pipeline;
 pub mod resources;
 pub mod uniforms;
+pub mod skybox; // <-- ADD
 
+use context::RenderContext;
+use frame::FrameRenderer;
 use uniforms::camera::OrbitCamera;
 
 #[derive(Clone, Copy)]
@@ -22,20 +22,15 @@ pub struct Renderer {
     ctx: RenderContext,
     frame: FrameRenderer,
 
-    // ===== AVATAR STATE =====
     avatar_pos: Vec3,
     avatar_yaw: f32,
     velocity: Vec3,
     grounded: bool,
 
-    // ===== DOUBLE JUMP =====
     jump_count: u8,
     max_jumps: u8,
 
-    // ===== CAMERA =====
     pub camera: OrbitCamera,
-
-    // ===== AVATAR GEOMETRY (LOCAL SPACE) =====
     avatar_parts: Vec<Prop>,
 }
 
@@ -44,28 +39,11 @@ impl Renderer {
         let ctx = RenderContext::new(window).await;
         let frame = FrameRenderer::new(&ctx);
 
-        // Composite avatar built from parts (local-space)
         let avatar_parts = vec![
-            // Torso
-            Prop {
-                position: Vec3::new(0.0, 0.9, 0.0),
-                scale: Vec3::new(0.6, 0.9, 0.3),
-            },
-            // Head
-            Prop {
-                position: Vec3::new(0.0, 1.6, 0.0),
-                scale: Vec3::splat(0.35),
-            },
-            // Left leg
-            Prop {
-                position: Vec3::new(-0.15, 0.3, 0.0),
-                scale: Vec3::new(0.2, 0.6, 0.2),
-            },
-            // Right leg
-            Prop {
-                position: Vec3::new(0.15, 0.3, 0.0),
-                scale: Vec3::new(0.2, 0.6, 0.2),
-            },
+            Prop { position: Vec3::new(0.0, 0.9, 0.0), scale: Vec3::new(0.6, 0.9, 0.3) },
+            Prop { position: Vec3::new(0.0, 1.6, 0.0), scale: Vec3::splat(0.35) },
+            Prop { position: Vec3::new(-0.15, 0.3, 0.0), scale: Vec3::new(0.2, 0.6, 0.2) },
+            Prop { position: Vec3::new(0.15, 0.3, 0.0), scale: Vec3::new(0.2, 0.6, 0.2) },
         ];
 
         Self {
@@ -75,10 +53,8 @@ impl Renderer {
             avatar_yaw: 0.0,
             velocity: Vec3::ZERO,
             grounded: true,
-
             jump_count: 0,
             max_jumps: 2,
-
             camera: OrbitCamera::new(),
             avatar_parts,
         }
@@ -105,18 +81,15 @@ impl Renderer {
             self.avatar_pos += move_dir * speed * dt;
         }
 
-        // ===== DOUBLE JUMP =====
         if jump && self.jump_count < self.max_jumps {
             self.velocity.y = 5.0;
             self.grounded = false;
             self.jump_count += 1;
         }
 
-        // Gravity
         self.velocity.y -= 9.8 * dt;
         self.avatar_pos.y += self.velocity.y * dt;
 
-        // Ground collision
         if self.avatar_pos.y <= 0.0 {
             self.avatar_pos.y = 0.0;
             self.velocity.y = 0.0;
@@ -128,13 +101,12 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
-        // Convert avatar parts to world-space props for rendering
         let avatar_world_props: Vec<Prop> = self
             .avatar_parts
             .iter()
-            .map(|part| Prop {
-                position: self.avatar_pos + part.position,
-                scale: part.scale,
+            .map(|p| Prop {
+                position: self.avatar_pos + p.position,
+                scale: p.scale,
             })
             .collect();
 
