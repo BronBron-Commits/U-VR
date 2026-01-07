@@ -5,6 +5,7 @@ use crate::renderer::context::RenderContext;
 use crate::renderer::pipeline::RenderPipelineBundle;
 use crate::renderer::resources::mesh::{Mesh, Vertex, floor_mesh, cube_mesh};
 use crate::renderer::uniforms::camera::{CameraUniform, OrbitCamera};
+use crate::renderer::frame::overlay_pass::draw_compass_overlay;
 use crate::renderer::Prop;
 
 /* =========================================================
@@ -132,9 +133,20 @@ pub fn render_frame(
     }
 
     /* =====================================================
-       PASS 2 — COMPASS OVERLAY (TEMP DISABLED)
+       PASS 2 — COMPASS OVERLAY (SCREEN SPACE)
        ===================================================== */
-    // Overlay pipeline intentionally disabled until shader exists
+
+    draw_compass_overlay(
+        &mut encoder,
+        &view,
+        &ctx.device.device,
+        &pipeline.overlay,
+        camera.yaw,
+    );
+
+    /* =====================================================
+       SUBMIT
+       ===================================================== */
 
     ctx.device.queue.submit(Some(encoder.finish()));
     frame.present();

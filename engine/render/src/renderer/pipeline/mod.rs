@@ -26,7 +26,6 @@ impl RenderPipelineBundle {
         let overlay = create_overlay_pipeline(
             &device.device,
             config,
-            camera_layout,
         );
 
         Self { main, overlay }

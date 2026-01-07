@@ -1,4 +1,5 @@
 pub mod render_pass;
+pub mod overlay_pass;
 
 use glam::Vec3;
 use crate::renderer::context::RenderContext;

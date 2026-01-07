@@ -1,21 +1,21 @@
+use crate::renderer::resources::mesh::Vertex;
+
 pub fn create_overlay_pipeline(
     device: &wgpu::Device,
     config: &wgpu::SurfaceConfiguration,
-    camera_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
-    // TEMPORARY: reuse the main shader/pipeline for overlay
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("overlay_shader (alias of main)"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        label: Some("overlay_shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("overlay.wgsl").into()),
     });
 
-    let pipeline_layout = device.create_pipeline_layout(
-        &wgpu::PipelineLayoutDescriptor {
+    // Overlay pipeline has NO bind groups
+    let pipeline_layout =
+        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("overlay_pipeline_layout"),
-            bind_group_layouts: &[camera_layout],
+            bind_group_layouts: &[],
             push_constant_ranges: &[],
-        },
-    );
+        });
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("overlay_pipeline"),
@@ -24,7 +24,7 @@ pub fn create_overlay_pipeline(
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: "vs_main",
-            buffers: &[crate::renderer::resources::mesh::Vertex::layout()],
+            buffers: &[Vertex::layout()],
         },
 
         fragment: Some(wgpu::FragmentState {
@@ -37,7 +37,11 @@ pub fn create_overlay_pipeline(
             })],
         }),
 
-        primitive: wgpu::PrimitiveState::default(),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::LineList, // IMPORTANT for compass
+            ..Default::default()
+        },
+
         depth_stencil: None,
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
