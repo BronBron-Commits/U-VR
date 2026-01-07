@@ -2,14 +2,17 @@ use winit::window::Window;
 
 pub mod device;
 pub mod surface;
+pub mod depth;
 
 use crate::renderer::context::device::RenderDevice;
 use crate::renderer::context::surface::RenderSurface;
+use crate::renderer::context::depth::DepthTexture;
 
 pub struct RenderContext {
     pub device: RenderDevice,
     pub surface: RenderSurface,
     pub camera_layout: wgpu::BindGroupLayout,
+    pub depth: DepthTexture,
 }
 
 impl RenderContext {
@@ -45,6 +48,7 @@ impl RenderContext {
         };
 
         let surface = RenderSurface::new(window, &render_device);
+        let depth = DepthTexture::new(&render_device.device, &surface.config);
 
         let camera_layout =
             render_device
@@ -69,10 +73,13 @@ impl RenderContext {
             device: render_device,
             surface,
             camera_layout,
+            depth,
         }
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
         self.surface.resize(width, height, &self.device);
+        self.depth = DepthTexture::new(&self.device.device, &self.surface.config);
+
     }
 }
