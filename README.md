@@ -117,7 +117,7 @@ Development follows a **branch → validate → merge → tag** flow:
 
 ## 📜 License
 
-MIT (or update if different).
+MIT
 
 ---
 
