@@ -9,7 +9,13 @@ pub fn draw_compass_overlay(
     pipeline: &wgpu::RenderPipeline,
     camera_yaw: f32,
 ) {
-    let size = 0.15;
+    // Length of axis
+    let length = 0.18;
+
+    // THICKNESS CONTROL (increase this to make it thicker)
+    let thickness = 0.05;
+
+    // Bottom-right of screen in NDC-ish space
     let origin = Vec3::new(0.85, -0.85, 0.0);
 
     let rot = Mat3::from_rotation_y(-camera_yaw);
@@ -25,20 +31,31 @@ pub fn draw_compass_overlay(
     let mut i: u16 = 0;
 
     for (axis, color) in axes {
-        let dir = rot * axis * size;
+        let dir = rot * axis * length;
 
-        vertices.push(Vertex {
-            position: origin.into(),
-            color,
-        });
-        vertices.push(Vertex {
-            position: (origin + dir).into(),
-            color,
-        });
+        // Perpendicular vector for thickness (screen-space)
+        let perp = Vec3::new(-dir.y, dir.x, 0.0)
+            .normalize_or_zero()
+            * thickness;
 
-        indices.push(i);
-        indices.push(i + 1);
-        i += 2;
+        // Quad corners
+        let p0 = origin + perp;
+        let p1 = origin - perp;
+        let p2 = origin + dir - perp;
+        let p3 = origin + dir + perp;
+
+        vertices.push(Vertex { position: p0.into(), color });
+        vertices.push(Vertex { position: p1.into(), color });
+        vertices.push(Vertex { position: p2.into(), color });
+        vertices.push(Vertex { position: p3.into(), color });
+
+        // Two triangles
+        indices.extend_from_slice(&[
+            i, i + 1, i + 2,
+            i, i + 2, i + 3,
+        ]);
+
+        i += 4;
     }
 
     let mesh = Mesh::new(device, &vertices, &indices);
@@ -49,7 +66,7 @@ pub fn draw_compass_overlay(
             view,
             resolve_target: None,
             ops: wgpu::Operations {
-                load: wgpu::LoadOp::Load, // IMPORTANT: do not clear
+                load: wgpu::LoadOp::Load,
                 store: true,
             },
         })],
