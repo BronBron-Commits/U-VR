@@ -15,12 +15,17 @@ pub fn render_frame(
     props: &[Prop],
 ) {
     let frame = ctx.surface.surface.get_current_texture().unwrap();
-    let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let view = frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut encoder = ctx.device.device.create_command_encoder(
-        &wgpu::CommandEncoderDescriptor { label: Some("frame_encoder") },
+        &wgpu::CommandEncoderDescriptor {
+            label: Some("frame_encoder"),
+        },
     );
 
+    // --- camera ---
     let view_m = camera.view_matrix();
     let proj_m = Mat4::perspective_rh(
         45f32.to_radians(),
@@ -59,18 +64,25 @@ pub fn render_frame(
         &layouts,
     );
 
+    // --- floor ---
     let (fv, fi) = floor_mesh();
     let floor = Mesh::new(&ctx.device.device, &fv, &fi);
 
+    // --- avatar cube (SCALED TALLER) ---
     let (mut cv, ci) = cube_mesh();
     let rot = Mat3::from_rotation_y(avatar_yaw);
+
+    let avatar_scale = Vec3::new(1.0, 2.0, 1.0); // <<<<<< OPTION 1
+
     for v in &mut cv {
         let p = Vec3::from(v.position);
-        let rp = rot * p + avatar_pos;
+        let rp = rot * (p * avatar_scale) + avatar_pos;
         v.position = rp.into();
     }
-    let cube = Mesh::new(&ctx.device.device, &cv, &ci);
 
+    let avatar = Mesh::new(&ctx.device.device, &cv, &ci);
+
+    // --- props ---
     let mut prop_meshes = Vec::new();
     for prop in props {
         let (mut pv, pi) = cube_mesh();
@@ -98,17 +110,29 @@ pub fn render_frame(
         pass.set_pipeline(&pipeline.pipeline);
         pass.set_bind_group(0, &camera_bind_group, &[]);
 
+        // floor
         pass.set_vertex_buffer(0, floor.vertex_buffer.slice(..));
-        pass.set_index_buffer(floor.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.set_index_buffer(
+            floor.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
         pass.draw_indexed(0..floor.index_count, 0, 0..1);
 
-        pass.set_vertex_buffer(0, cube.vertex_buffer.slice(..));
-        pass.set_index_buffer(cube.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        pass.draw_indexed(0..cube.index_count, 0, 0..1);
+        // avatar
+        pass.set_vertex_buffer(0, avatar.vertex_buffer.slice(..));
+        pass.set_index_buffer(
+            avatar.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        pass.draw_indexed(0..avatar.index_count, 0, 0..1);
 
+        // props
         for m in &prop_meshes {
             pass.set_vertex_buffer(0, m.vertex_buffer.slice(..));
-            pass.set_index_buffer(m.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            pass.set_index_buffer(
+                m.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
             pass.draw_indexed(0..m.index_count, 0, 0..1);
         }
     }

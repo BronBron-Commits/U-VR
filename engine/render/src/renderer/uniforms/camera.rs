@@ -41,9 +41,9 @@ impl OrbitCamera {
             self.yaw += mouse_dx * sensitivity;
             self.pitch += mouse_dy * sensitivity;
 
-            // ---- PITCH LIMITS (normal human camera range) ----
-            let min_pitch = -1.2; // ~ -69°
-            let max_pitch =  0.3; // ~ +17°
+            // vertical camera limits
+            let min_pitch = -0.9;
+            let max_pitch =  0.0;
             self.pitch = self.pitch.clamp(min_pitch, max_pitch);
         }
     }
