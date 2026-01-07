@@ -1,15 +1,18 @@
 use glam::Vec3;
 use winit::window::Window;
 
-use crate::renderer::context::RenderContext;
-use crate::renderer::frame::FrameRenderer;
-use crate::renderer::uniforms::camera::OrbitCamera;
+use crate::avatar::{CapsuleAvatar, CapsulePart};
+
+use context::RenderContext;
+use frame::FrameRenderer;
 
 pub mod context;
 pub mod frame;
 pub mod pipeline;
 pub mod resources;
 pub mod uniforms;
+
+use uniforms::camera::OrbitCamera;
 
 #[derive(Clone, Copy)]
 pub struct Prop {
@@ -27,12 +30,13 @@ pub struct Renderer {
     velocity: Vec3,
     grounded: bool,
 
-    // ===== DOUBLE JUMP STATE =====
     jump_count: u8,
     max_jumps: u8,
 
+    avatar: CapsuleAvatar,
+
     pub camera: OrbitCamera,
-    props: Vec<Prop>,
+    world_props: Vec<Prop>,
 }
 
 impl Renderer {
@@ -40,7 +44,7 @@ impl Renderer {
         let ctx = RenderContext::new(window).await;
         let frame = FrameRenderer::new(&ctx);
 
-        let mut props = Vec::new();
+        let mut world_props = Vec::new();
 
         for xi in -10..=10 {
             for zi in -10..=10 {
@@ -50,7 +54,7 @@ impl Renderer {
                 if (x + z) % 7 == 0 {
                     let h = 1.0 + ((x * z).abs() % 4) as f32;
 
-                    props.push(Prop {
+                    world_props.push(Prop {
                         position: Vec3::new(x as f32 * 2.0, h * 0.5, z as f32 * 2.0),
                         scale: Vec3::new(1.0, h, 1.0),
                     });
@@ -64,16 +68,16 @@ impl Renderer {
 
             avatar_pos: Vec3::ZERO,
             avatar_yaw: 0.0,
-
             velocity: Vec3::ZERO,
             grounded: true,
 
-            // ===== DOUBLE JUMP INIT =====
             jump_count: 0,
             max_jumps: 2,
 
+            avatar: CapsuleAvatar::humanoid(),
+
             camera: OrbitCamera::new(),
-            props,
+            world_props,
         }
     }
 
@@ -98,24 +102,19 @@ impl Renderer {
             self.avatar_pos += move_dir * speed * dt;
         }
 
-        // ===== DOUBLE JUMP LOGIC =====
         if jump && self.jump_count < self.max_jumps {
             self.velocity.y = 5.0;
             self.grounded = false;
             self.jump_count += 1;
         }
 
-        // gravity
         self.velocity.y -= 9.8 * dt;
         self.avatar_pos.y += self.velocity.y * dt;
 
-        // ground collision
         if self.avatar_pos.y <= 0.0 {
             self.avatar_pos.y = 0.0;
             self.velocity.y = 0.0;
             self.grounded = true;
-
-            // reset jumps on landing
             self.jump_count = 0;
         }
 
@@ -123,12 +122,23 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
+        // ===== BUILD A SINGLE SCENE LIST =====
+        let mut scene_props = self.world_props.clone();
+
+        for CapsulePart { offset, scale } in &self.avatar.parts {
+            scene_props.push(Prop {
+                position: self.avatar_pos + *offset,
+                scale: *scale,
+            });
+        }
+
+        // ===== SINGLE RENDER PASS =====
         self.frame.render(
             &mut self.ctx,
             &self.camera,
-            self.avatar_pos,
+            Vec3::ZERO,
             self.avatar_yaw,
-            &self.props,
+            &scene_props,
         );
     }
 }
