@@ -1,5 +1,5 @@
 use winit::window::Window;
-use super::RenderDevice;
+use crate::renderer::context::device::RenderDevice;
 
 pub struct RenderSurface {
     pub surface: wgpu::Surface,
