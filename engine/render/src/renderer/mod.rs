@@ -1,8 +1,6 @@
 use glam::Vec3;
 use winit::window::Window;
 
-use crate::avatar::{CapsuleAvatar, CapsulePart};
-
 use context::RenderContext;
 use frame::FrameRenderer;
 
@@ -24,19 +22,21 @@ pub struct Renderer {
     ctx: RenderContext,
     frame: FrameRenderer,
 
+    // ===== AVATAR STATE =====
     avatar_pos: Vec3,
     avatar_yaw: f32,
-
     velocity: Vec3,
     grounded: bool,
 
+    // ===== DOUBLE JUMP =====
     jump_count: u8,
     max_jumps: u8,
 
-    avatar: CapsuleAvatar,
-
+    // ===== CAMERA =====
     pub camera: OrbitCamera,
-    world_props: Vec<Prop>,
+
+    // ===== AVATAR GEOMETRY (LOCAL SPACE) =====
+    avatar_parts: Vec<Prop>,
 }
 
 impl Renderer {
@@ -44,28 +44,33 @@ impl Renderer {
         let ctx = RenderContext::new(window).await;
         let frame = FrameRenderer::new(&ctx);
 
-        let mut world_props = Vec::new();
-
-        for xi in -10..=10 {
-            for zi in -10..=10 {
-                let x = xi as i32;
-                let z = zi as i32;
-
-                if (x + z) % 7 == 0 {
-                    let h = 1.0 + ((x * z).abs() % 4) as f32;
-
-                    world_props.push(Prop {
-                        position: Vec3::new(x as f32 * 2.0, h * 0.5, z as f32 * 2.0),
-                        scale: Vec3::new(1.0, h, 1.0),
-                    });
-                }
-            }
-        }
+        // Composite avatar built from parts (local-space)
+        let avatar_parts = vec![
+            // Torso
+            Prop {
+                position: Vec3::new(0.0, 0.9, 0.0),
+                scale: Vec3::new(0.6, 0.9, 0.3),
+            },
+            // Head
+            Prop {
+                position: Vec3::new(0.0, 1.6, 0.0),
+                scale: Vec3::splat(0.35),
+            },
+            // Left leg
+            Prop {
+                position: Vec3::new(-0.15, 0.3, 0.0),
+                scale: Vec3::new(0.2, 0.6, 0.2),
+            },
+            // Right leg
+            Prop {
+                position: Vec3::new(0.15, 0.3, 0.0),
+                scale: Vec3::new(0.2, 0.6, 0.2),
+            },
+        ];
 
         Self {
             ctx,
             frame,
-
             avatar_pos: Vec3::ZERO,
             avatar_yaw: 0.0,
             velocity: Vec3::ZERO,
@@ -74,10 +79,8 @@ impl Renderer {
             jump_count: 0,
             max_jumps: 2,
 
-            avatar: CapsuleAvatar::humanoid(),
-
             camera: OrbitCamera::new(),
-            world_props,
+            avatar_parts,
         }
     }
 
@@ -102,15 +105,18 @@ impl Renderer {
             self.avatar_pos += move_dir * speed * dt;
         }
 
+        // ===== DOUBLE JUMP =====
         if jump && self.jump_count < self.max_jumps {
             self.velocity.y = 5.0;
             self.grounded = false;
             self.jump_count += 1;
         }
 
+        // Gravity
         self.velocity.y -= 9.8 * dt;
         self.avatar_pos.y += self.velocity.y * dt;
 
+        // Ground collision
         if self.avatar_pos.y <= 0.0 {
             self.avatar_pos.y = 0.0;
             self.velocity.y = 0.0;
@@ -122,23 +128,22 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
-        // ===== BUILD A SINGLE SCENE LIST =====
-        let mut scene_props = self.world_props.clone();
+        // Convert avatar parts to world-space props for rendering
+        let avatar_world_props: Vec<Prop> = self
+            .avatar_parts
+            .iter()
+            .map(|part| Prop {
+                position: self.avatar_pos + part.position,
+                scale: part.scale,
+            })
+            .collect();
 
-        for CapsulePart { offset, scale } in &self.avatar.parts {
-            scene_props.push(Prop {
-                position: self.avatar_pos + *offset,
-                scale: *scale,
-            });
-        }
-
-        // ===== SINGLE RENDER PASS =====
         self.frame.render(
             &mut self.ctx,
             &self.camera,
-            Vec3::ZERO,
+            self.avatar_pos,
             self.avatar_yaw,
-            &scene_props,
+            &avatar_world_props,
         );
     }
 }
