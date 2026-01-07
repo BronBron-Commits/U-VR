@@ -1,8 +1,3 @@
-Below is a **clean, project-appropriate README** you can drop straight into the repo root as `README.md`.
-It reflects the **current stable state** you just tagged (procedural skybox, full avatar, compass, renderer baseline) without over-promising.
-
----
-
 # U-VR
 
 **U-VR** is an experimental Rust-based 3D engine and client focused on **clean renderer architecture**, **procedural visuals**, and **low-level control** over the entire rendering pipeline.
@@ -130,12 +125,3 @@ MIT (or update if different).
 
 Bronson Manley
 GitHub: [BronBron-Commits](https://github.com/BronBron-Commits)
-
----
-
-If you want, next we can:
-
-* tighten the README for public visibility
-* add architecture diagrams
-* write a CONTRIBUTING.md
-* or tag this README update as part of a new release
