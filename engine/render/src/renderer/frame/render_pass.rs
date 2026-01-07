@@ -15,7 +15,7 @@ pub fn render_frame(
     camera: &OrbitCamera,
     avatar_pos: Vec3,
     avatar_yaw: f32,
-    _props: &[Prop],
+    props: &[Prop],                 // ← USED AGAIN
     pipelines: &RenderPipelineBundle,
     skybox: &SkyboxPipeline,
 ) {
@@ -82,20 +82,25 @@ pub fn render_frame(
         },
     );
 
-    /* ================= GEOMETRY ================= */
+    /* ================= FLOOR ================= */
 
     let (fv, fi) = floor_mesh();
     let floor = Mesh::new(&ctx.device.device, &fv, &fi);
 
-    let (mut av, ai) = cube_mesh([0.8, 0.8, 0.8]);
-    let rot = Mat3::from_rotation_y(avatar_yaw);
+    /* ================= AVATAR PARTS ================= */
 
-    for v in &mut av {
-        let p = Vec3::from(v.position);
-        v.position = (rot * p + avatar_pos).into();
+    let mut avatar_meshes = Vec::new();
+
+    for prop in props {
+        let (mut verts, inds) = cube_mesh([0.8, 0.8, 0.8]);
+
+        for v in &mut verts {
+            let p = Vec3::from(v.position) * prop.scale + prop.position;
+            v.position = p.into();
+        }
+
+        avatar_meshes.push(Mesh::new(&ctx.device.device, &verts, &inds));
     }
-
-    let avatar = Mesh::new(&ctx.device.device, &av, &ai);
 
     /* ================= WORLD PASS ================= */
 
@@ -122,18 +127,22 @@ pub fn render_frame(
 
         pass.set_pipeline(&pipelines.main);
         pass.set_bind_group(0, &camera_bind_group, &[]);
+
         floor.draw(&mut pass);
-        avatar.draw(&mut pass);
+
+        for mesh in &avatar_meshes {
+            mesh.draw(&mut pass);
+        }
     }
 
-    /* ================= COMPASS OVERLAY ================= */
+    /* ================= COMPASS ================= */
 
     draw_compass_overlay(
         &mut encoder,
         &view_tex,
         &ctx.device.device,
         &pipelines.overlay,
-        camera.yaw, // ✅ FIX: f32 as expected
+        camera.yaw,
     );
 
     ctx.device.queue.submit(Some(encoder.finish()));
