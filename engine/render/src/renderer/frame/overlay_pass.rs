@@ -13,7 +13,7 @@ pub fn draw_compass_overlay(
     let length = 0.18;
 
     // THICKNESS CONTROL (increase this to make it thicker)
-    let thickness = 0.05;
+    let thickness = 0.1;
 
     // Bottom-right of screen in NDC-ish space
     let origin = Vec3::new(0.85, -0.85, 0.0);
