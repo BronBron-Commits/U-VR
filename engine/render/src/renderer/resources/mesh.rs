@@ -1,6 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
+/* =========================================================
+   VERTEX
+   ========================================================= */
+
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
@@ -30,6 +34,10 @@ impl Vertex {
         }
     }
 }
+
+/* =========================================================
+   MESH
+   ========================================================= */
 
 pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
@@ -65,10 +73,16 @@ impl Mesh {
             index_count: indices.len() as u32,
         }
     }
+
+    pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..self.index_count, 0, 0..1);
+    }
 }
 
 /* =========================================================
-   GRID FLOOR (LINE LIST)
+   GRID FLOOR (LINES)
    ========================================================= */
 
 pub fn floor_mesh() -> (Vec<Vertex>, Vec<u16>) {
@@ -124,18 +138,16 @@ pub fn floor_mesh() -> (Vec<Vertex>, Vec<u16>) {
    CUBE (TRIANGLES)
    ========================================================= */
 
-pub fn cube_mesh() -> (Vec<Vertex>, Vec<u16>) {
-    let c = [0.8, 0.2, 0.2];
-
+pub fn cube_mesh(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
     let vertices = vec![
-        Vertex { position: [-0.5, -0.5, -0.5], color: c },
-        Vertex { position: [ 0.5, -0.5, -0.5], color: c },
-        Vertex { position: [ 0.5,  0.5, -0.5], color: c },
-        Vertex { position: [-0.5,  0.5, -0.5], color: c },
-        Vertex { position: [-0.5, -0.5,  0.5], color: c },
-        Vertex { position: [ 0.5, -0.5,  0.5], color: c },
-        Vertex { position: [ 0.5,  0.5,  0.5], color: c },
-        Vertex { position: [-0.5,  0.5,  0.5], color: c },
+        Vertex { position: [-0.5, -0.5, -0.5], color },
+        Vertex { position: [ 0.5, -0.5, -0.5], color },
+        Vertex { position: [ 0.5,  0.5, -0.5], color },
+        Vertex { position: [-0.5,  0.5, -0.5], color },
+        Vertex { position: [-0.5, -0.5,  0.5], color },
+        Vertex { position: [ 0.5, -0.5,  0.5], color },
+        Vertex { position: [ 0.5,  0.5,  0.5], color },
+        Vertex { position: [-0.5,  0.5,  0.5], color },
     ];
 
     let indices: Vec<u16> = vec![
