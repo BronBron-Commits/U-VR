@@ -1,16 +1,15 @@
 use glam::Vec3;
 use winit::window::Window;
 
-use context::RenderContext;
-use frame::FrameRenderer;
+use crate::renderer::context::RenderContext;
+use crate::renderer::frame::FrameRenderer;
+use crate::renderer::uniforms::camera::OrbitCamera;
 
 pub mod context;
 pub mod frame;
 pub mod pipeline;
 pub mod resources;
 pub mod uniforms;
-
-use uniforms::camera::OrbitCamera;
 
 #[derive(Clone, Copy)]
 pub struct Prop {
@@ -49,11 +48,11 @@ impl Renderer {
                 let z = zi as i32;
 
                 if (x + z) % 7 == 0 {
-                    let height = 1.0 + ((x * z).abs() % 4) as f32;
+                    let h = 1.0 + ((x * z).abs() % 4) as f32;
 
                     props.push(Prop {
-                        position: Vec3::new(x as f32 * 2.0, height * 0.5, z as f32 * 2.0),
-                        scale: Vec3::new(1.0, height, 1.0),
+                        position: Vec3::new(x as f32 * 2.0, h * 0.5, z as f32 * 2.0),
+                        scale: Vec3::new(1.0, h, 1.0),
                     });
                 }
             }
@@ -62,12 +61,14 @@ impl Renderer {
         Self {
             ctx,
             frame,
+
             avatar_pos: Vec3::ZERO,
             avatar_yaw: 0.0,
+
             velocity: Vec3::ZERO,
             grounded: true,
 
-            // ===== INIT DOUBLE JUMP =====
+            // ===== DOUBLE JUMP INIT =====
             jump_count: 0,
             max_jumps: 2,
 
@@ -114,7 +115,7 @@ impl Renderer {
             self.velocity.y = 0.0;
             self.grounded = true;
 
-            // RESET JUMPS ON LAND
+            // reset jumps on landing
             self.jump_count = 0;
         }
 
