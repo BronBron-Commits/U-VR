@@ -1,110 +1,141 @@
+Below is a **clean, project-appropriate README** you can drop straight into the repo root as `README.md`.
+It reflects the **current stable state** you just tagged (procedural skybox, full avatar, compass, renderer baseline) without over-promising.
+
+---
+
 # U-VR
 
-**U-VR** is a minimal third-person 3D prototype built in **Rust + wgpu + winit**. It focuses on establishing a clean, extensible foundation for movement, camera control, and rendering without the overhead of a heavy game engine.
+**U-VR** is an experimental Rust-based 3D engine and client focused on **clean renderer architecture**, **procedural visuals**, and **low-level control** over the entire rendering pipeline.
 
-This repository prioritizes **architectural correctness** and **input separation**, making it a solid baseline for engine development, physics experimentation, or custom game logic.
-
----
-
-## 🚀 Current Features
-
-### 🎥 Camera System
-
-* **Orbit Camera:** Traditional third-person behavior.
-* **Mouse Interaction:** Orbital rotation (Middle Mouse) and smooth zooming (Scroll).
-* **Clamped Pitch:** Prevents gimbal lock or unnatural flipping.
-* **Decoupled Logic:** The camera follows the player position but maintains its own independent orientation.
-
-### 🏃 Player Movement
-
-* **Camera-Relative WASD:** Movement is calculated based on the camera’s current yaw.
-* **Directional Alignment:** Player avatar (cube) rotates to face the direction of movement.
-* **Verticality:** Jump mechanics with gravity and grounded detection.
-
-### 🛠️ Rendering & Architecture
-
-* **wgpu Pipeline:** Modern, explicit graphics API usage.
-* **Input Separation:** Clean boundaries between raw window events, movement logic, and camera state.
-* **Spatial Reference:** Includes a procedural grid-based ground plane for depth perception.
+This project is part of the broader **Unhidra** ecosystem and serves as a proving ground for renderer design, camera systems, and world interaction without relying on heavyweight game engines.
 
 ---
 
-## 🎮 Controls
+## ✨ Current Features
 
-| Input | Action |
-| --- | --- |
-| **W / A / S / D** | Move (relative to camera) |
-| **Space** | Jump |
-| **Middle Mouse (Hold)** | Rotate Camera |
-| **Mouse Wheel** | Zoom In/Out |
-| **Esc / Window Close** | Exit Application |
+### Renderer
+
+* Procedural **skybox** (no textures, no cubemaps)
+* Depth-buffered world rendering
+* Stable render pass ordering:
+
+  1. Skybox
+  2. World geometry
+  3. Overlay / HUD
+
+### World
+
+* Grid floor
+* Composite **avatar built from multiple primitives**
+* Correct depth testing from all camera angles
+
+### Camera
+
+* Orbit camera with yaw control
+* Target-following behavior
+* Perspective projection
+
+### Overlay
+
+* On-screen **compass / axis indicator**
+* Rendered as an overlay pass
+* Independent of world depth
 
 ---
 
-## 📂 Project Structure
+## 🧱 Architecture Overview
 
-```text
-U-VR/
-├── game/
-│   └── client/
-│       └── src/
-│           └── main.rs         # Entry point (Thin layer)
-└── engine/
-    └── render/
-        └── src/
-            ├── app.rs          # Event loop & Input orchestration
-            └── renderer/
-                ├── mod.rs      # Player movement & Physics state
-                ├── frame/      # Per-frame rendering logic
-                ├── uniforms/   # Camera buffers & GPU data
-                ├── resources/  # Procedural mesh generation
-                └── pipeline/   # wgpu pipeline configuration
+The renderer is intentionally **modular and explicit**:
 
 ```
+renderer/
+├─ context/        # Device, surface, depth, swapchain
+├─ pipeline/       # World, overlay, skybox pipelines
+├─ frame/          # FrameRenderer + render passes
+├─ resources/      # Meshes, vertices, primitives
+├─ uniforms/       # Camera and other GPU uniforms
+├─ skybox/         # Procedural skybox system
+└─ overlay/        # Compass / HUD rendering
+```
+
+### Key Design Principles
+
+* No hidden global state
+* Pipelines are created once, reused per frame
+* Explicit render passes (no magic ordering)
+* Minimal GPU abstractions on top of `wgpu`
 
 ---
 
-## 🧠 Design Philosophy
+## 🚀 Getting Started
 
-1. **No Magic:** Every transformation is explicit; no hidden engine "black boxes."
-2. **Input as Data:** Movement and Camera systems consume input data rather than owning it.
-3. **Independence:** The camera never infers intent from movement keys.
-4. **Clarity over Abstraction:** CPU-side correctness is prioritized over premature GPU optimizations.
+### Prerequisites
 
----
+* Rust (stable)
+* Cargo
+* A GPU with Vulkan / DX12 / Metal support
 
-## 🛠 Building & Running
-
-### Requirements
-
-* **Rust** (Stable)
-* **GPU:** Vulkan, DX12, or Metal capable hardware.
-* **OS:** Windows, Linux, or macOS.
-
-### Execution
+### Build & Run
 
 ```bash
-# Run the client application
 cargo run --bin client
-
 ```
 
 ---
 
-## 📈 Roadmap & Extensions
+## 🏷️ Versioning
 
-* [ ] **Camera Damping:** Add interpolation for smoother motion.
-* [ ] **Collision:** Prevent camera/player clipping through geometry.
-* [ ] **Character Controller:** Transition from a simple cube to a capsule controller.
-* [ ] **Instancing:** Optimized rendering for many objects.
-* [ ] **Physics Integration:** Plug in a crate like `rapier3d`.
+The current stable renderer milestone is tagged:
+
+```
+v0.3.0
+```
+
+This tag represents:
+
+* Procedural skybox integrated
+* Full avatar rendering restored
+* Compass overlay working
+* Renderer architecture stabilized
 
 ---
 
-## ⚖️ License
+## 🧪 Experimental Workflow
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+Development follows a **branch → validate → merge → tag** flow:
+
+* Experimental features are developed on feature branches
+* Only validated, stable changes are merged into `main`
+* Major milestones are tagged for easy rollback
 
 ---
 
-**Status:** 🟢 *Stable baseline. Architecturally decoupled and ready for expansion.*
+## 🔮 Roadmap (Short Term)
+
+* Avatar mesh caching
+* Simple animation (idle / walk)
+* Skybox time-of-day variation
+* Debug gizmos using the overlay system
+* World object streaming experiments
+
+---
+
+## 📜 License
+
+MIT (or update if different).
+
+---
+
+## ✍️ Author
+
+Bronson Manley
+GitHub: [BronBron-Commits](https://github.com/BronBron-Commits)
+
+---
+
+If you want, next we can:
+
+* tighten the README for public visibility
+* add architecture diagrams
+* write a CONTRIBUTING.md
+* or tag this README update as part of a new release
